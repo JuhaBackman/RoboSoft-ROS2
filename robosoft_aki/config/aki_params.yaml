@@ -1,0 +1,162 @@
+remote_controller_node:
+  ros__parameters:
+    layout: "aki"
+    source_address: 128
+    watchdog_timeout_ms: 300
+
+task_manager_node:
+  ros__parameters:
+    task_directory: "/opt/ros2_ws/tasks"
+    task_extension_format: "xml_elements"
+    autosave_recorded_routes: false
+
+aki_main_node:
+  ros__parameters:
+    enable_lidar: true
+    required_nodes:
+      - "/remote_controller_node"
+      - "/tecu_node"
+      - "/nmea2000_node"
+      - "/nmea2000_server"
+      - "/gps_to_cartesian_node"
+      - "/task_manager_node"
+      - "/route_control_node"
+      - "/path_tracking_node"
+      - "/aki_uvc_sequence_node"
+      - "/uvc_led_node"
+      - "/lidar_safety_node"
+      - "/state_estimator_node"
+      - "/serial_node"
+      - "/nmea0183_parser_node"
+      - "/ntrip_client_node"
+    tecu_timeout_ms: 1000
+    state_estimator_timeout_ms: 1000
+
+serial_node:
+  ros__parameters:
+    device: "/dev/ttymxc2"
+    baud_rate: 230400
+    max_write_queue_bytes: 65536
+
+nmea0183_parser_node:
+  ros__parameters:
+    message_timeout_ms: 1500
+
+gps_to_cartesian_node:
+  ros__parameters:
+    # First point of GPN0 in the default metsapelto.XML TASK.
+    reference_latitude: 62.64229118391599
+    reference_longitude: 27.05834726450000
+
+ntrip_client_node:
+  ros__parameters:
+    enabled: false
+    server: "www.trimnet.fi"
+    port: 9999
+    mountpoint: "VRSrtcmGG"
+    protocol_version: "auto"
+    username: ""
+    password: ""
+    require_gga: true
+    gga_interval_s: 5.0
+    reconnect_delay_s: 10.0
+    connect_timeout_s: 10.0
+
+state_estimator_node:
+  ros__parameters:
+    lidar_mapping: false
+    lidar_x_offset: 1.094
+    lidar_angle_error: 0.0
+
+path_tracking_node:
+  ros__parameters:
+    robot_name: "aki"
+    enable_lidar: true
+    # Simple P controller parameters.
+    lateral_gain: -300.0
+    heading_gain: -2.5
+    minimum_speed_ms: 0.3
+    speed_ramp_ms: 0.3
+    maximum_speed_ms: 2.0
+    maximum_curvature_m_inv: 0.6
+    # VIATOC NMPC model parameters identified for AKI.
+    speed_acceleration_response_s: 4.5
+    speed_deceleration_response_s: 1.35
+    curvature_response_s: 1.4
+    command_delay_s: 0.1
+    minimum_speed_m_s: -1.2
+    maximum_speed_m_s: 2.3
+    minimum_tracking_speed_m_s: 0.3
+    minimum_acceleration_m_s2: -5.2
+    maximum_acceleration_m_s2: 5.6
+    minimum_curvature_m_inv: -0.6
+    maximum_curvature_m_inv: 0.6
+    minimum_curvature_rate_m_inv_s: -0.28
+    maximum_curvature_rate_m_inv_s: 0.28
+    # NMPC objective and runtime settings.
+    # Route projection makes this predominantly a lateral-error weight. Keep
+    # it high enough that the finite-horizon controller does not accept a
+    # persistent offset to avoid temporary heading and curvature corrections.
+    position_weight: 40.0
+    heading_weight: 25.0
+    # Penalize dropping below the TASK speed strongly enough that position
+    # error in a curve is corrected by steering instead of stopping.
+    speed_weight: 32.0
+    curvature_weight: 12.0
+    command_state_weight: 0.2
+    speed_rate_weight: 4.0
+    curvature_rate_weight: 12.0
+    terminal_weight_multiplier: 3.0
+    initial_reference_search_distance_m: 3.0
+    reference_step_search_distance_m: 2.0
+    reference_heading_tolerance_rad: 1.5707963267948966
+    reference_update_iterations: 2
+    solver_iterations: 4
+    command_timeout_ms: 300
+
+aki_uvc_sequence_node:
+  ros__parameters:
+    enable_lidar: true
+    enable_uvc_sequence: true
+    maximum_speed_ms: 2.0
+    uvc_advance_distance_m: 0.9
+    uvc_minimum_speed_ms: 0.3
+    uvc_distance_gain: 0.1
+    command_timeout_ms: 300
+
+uvc_led_node:
+  ros__parameters:
+    camera_light_time_ds: 40
+    camera_trigger_time_ds: 30
+    camera_light_power: 500
+    uvc_light_time_ds: 200
+    uvc_light_distance_mm: 150
+    status_source_address: -1
+    feedback_timeout_ms: 1000
+
+nmea2000_server:
+  ros__parameters:
+    priority: 2
+
+lidar_safety_node:
+  ros__parameters:
+    minimum_forward_distance_m: 0.4
+    forward_corridor_half_width_m: 0.4
+    forward_ignore_distance_m: 0.05
+    side_forward_min_m: -0.28
+    side_forward_max_m: 0.35
+    side_ignore_distance_m: 0.05
+    speed_ramp_per_s: 0.5
+    maximum_speed_m_s: 2.0
+    cloud_timeout_ms: 500
+
+route_control_node:
+  ros__parameters:
+    record_distance: 1.0
+    record_yaw_difference: 0.35
+    lookahead_minimum_m: 0.5
+    lookahead_time_s: 1.4
+    lookahead_maximum_m: 3.0
+    maximum_start_distance: 10.0
+    gps_timeout_ms: 1000
+    odometry_timeout_ms: 500

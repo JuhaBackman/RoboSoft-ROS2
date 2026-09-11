@@ -1,0 +1,23 @@
+serial_node:
+  ros__parameters:
+    device: "/dev/ttymxc2"
+    baud_rate: 230400
+    max_write_queue_bytes: 65536
+
+nmea0183_parser_node:
+  ros__parameters:
+    message_timeout_ms: 1500
+
+ntrip_client_node:
+  ros__parameters:
+    enabled: false
+    server: "www.trimnet.fi"
+    port: 9999
+    mountpoint: "VRSrtcmGG"
+    protocol_version: "auto"
+    username: ""
+    password: ""
+    require_gga: true
+    gga_interval_s: 5.0
+    reconnect_delay_s: 10.0
+    connect_timeout_s: 10.0

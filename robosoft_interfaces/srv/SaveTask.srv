@@ -1,0 +1,8 @@
+# Request
+string task_name          # Task filename
+TaskData task_data        # Task data to save
+---
+# Response
+bool success              # True if successful
+string error_message      # Error description if failed
+string file_path          # Path where saved

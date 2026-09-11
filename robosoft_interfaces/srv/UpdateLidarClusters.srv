@@ -1,0 +1,4 @@
+LidarCluster[] lidar_clusters
+---
+bool success
+string error_message

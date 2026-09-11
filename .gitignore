@@ -1,0 +1,15 @@
+# This repository contains only the RoboSoft ROS 2 packages.
+*
+!.gitignore
+!README.md
+!CHANGELOG.md
+!LICENSE
+!start_*.sh
+!robosoft_*/
+!robosoft_*/**
+!tasks/
+!tasks/**
+
+# Generated local files inside the included packages.
+**/__pycache__/
+*.py[cod]

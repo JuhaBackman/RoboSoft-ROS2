@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Example ISO 11783 Task File (AG XML 3.0)
+
+  This file demonstrates the structure of a task with:
+  - Farm (FRM), Customer (CTR), Product (PDT), Device (DVC): Master data
+  - Partfield (PFD): Field boundaries and metadata
+  - GuidanceGroup/Pattern (GGP/GPN) and GuidanceAllocation (GAN)
+  - Coordinates in WGS84 (latitude/longitude/altitude)
+
+  Attribute mapping (ISO 11783 standard):
+  - Point (PNT): A=type, B=designator, C=north, D=east, E=up
+  - Farm (FRM): A=id, B=name, D=country_code
+  - Customer (CTR): A=id, B=name
+  - Product (PDT): A=id, B=name
+  - Device (DVC): A=id, B=name
+  - Partfield (PFD): A=id, B=name
+  - OperationTechnique (OTQ): A=id, B=designator
+  - CulturalPractice (CPC): A=id, B=designator
+-->
+<ISO11783_TaskData VersionMajor="4" VersionMinor="0" ManagementSoftwareManufacturer="RoboSoft" ManagementSoftwareVersion="1.0" TaskControllerManufacturer="RoboSoft" TaskControllerVersion="1.0" DataTransferOrigin="2">
+    <!-- Farm master data -->
+    <FRM A="FRM1" B="Sample Farm" D="FI"/>
+    <!-- Customer master data -->
+    <CTR A="CTR1" B="John Smith"/>
+    <!-- Product/crop type -->
+    <PDT A="PDT1" B="Barley"/>
+    <!-- Device (implement) -->
+    <DVC A="DVC1" B="John Deere Tractor"/>
+    <!-- Partfield (field boundaries and metadata) -->
+    <PFD A="PFD1" B="Main Field">
+        <!-- Polygon defining field boundary -->
+        <PLN>
+            <EXT>
+                <LSG>
+                    <PNT A="2" C="60.194900" D="25.130800" E="90.0"/>
+                    <PNT A="2" C="60.195200" D="25.130800" E="90.0"/>
+                    <PNT A="2" C="60.195200" D="25.131200" E="90.0"/>
+                    <PNT A="2" C="60.194900" D="25.131200" E="90.0"/>
+                    <PNT A="2" C="60.194900" D="25.130800" E="90.0"/>
+                </LSG>
+            </EXT>
+        </PLN>
+        <GGP A="GGP1">
+            <GPN A="GPN1" C="3">
+                <LSG>
+                    <PNT A="6" C="60.194924999999998" D="25.130877000000002"/>
+                    <PNT A="9" C="60.195" D="25.1309"/>
+                    <PNT A="9" C="60.195075000000003" D="25.130922999999999"/>
+                    <PNT A="7" C="60.195149999999998" D="25.130946000000002"/>
+                </LSG>
+            </GPN>
+            <GPN A="GPN2" C="3">
+                <LSG>
+                    <PNT A="6" C="60.194850000000002" D="25.131"/>
+                    <PNT A="9" C="60.195099999999996" D="25.131049999999998"/>
+                    <PNT A="7" C="60.1952" D="25.1311"/>
+                </LSG>
+            </GPN>
+        </GGP>
+    </PFD>
+    <!-- Operation techniques -->
+    <OTQ A="OTQ1" B="Primary Tillage"/>
+    <!-- Cultural practices -->
+    <CPC A="CPC1" B="Conventional Farming"/>
+    <!-- Standard task: A=id, B=designator, D=farm, E=partfield, G=planned -->
+    <TSK A="TSK1" B="FieldA_2024" D="FRM1" E="PFD1" G="1">
+        <!-- Guidance lines allocation -->
+        <GAN A="GGP1"/>
+    </TSK>
+</ISO11783_TaskData>

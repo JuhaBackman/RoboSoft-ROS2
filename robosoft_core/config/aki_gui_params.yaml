@@ -1,0 +1,9 @@
+robosoft_gui_node:
+  ros__parameters:
+    robot_name: "aki"
+    robot_display_name: "AKI"
+    application_title: "RoboSoft AKI"
+    gui_mode_selection_enabled: false
+
+    default_task_file: "EMPTY_TASK.XML"
+    task_directory: "/opt/ros2_ws/tasks"

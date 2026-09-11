@@ -1,0 +1,8 @@
+# Request
+string task_name          # Task filename or identifier
+string robot_name         # Robot to load task for
+---
+# Response
+bool success              # True if successful
+string error_message      # Error description if failed
+TaskData task_data        # Loaded task data

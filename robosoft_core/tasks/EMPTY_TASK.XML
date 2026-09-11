@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Copyright 2026 Juha Backman / Natural Resources Institute Finland
+  SPDX-License-Identifier: GPL-3.0-only
+
+  Empty ISO 11783 task template for recording a new RoboSoft route.
+  RouteControl adds the standard guidance group and allocation when a route is
+  completed. Rename the file before saving if the template must be preserved.
+-->
+<ISO11783_TaskData
+  VersionMajor="4"
+  VersionMinor="0"
+  ManagementSoftwareManufacturer="RoboSoft"
+  ManagementSoftwareVersion="1.0"
+  TaskControllerManufacturer="RoboSoft"
+  TaskControllerVersion="1.0"
+  DataTransferOrigin="2">
+  <PFD A="PFD1" B="Recorded field"/>
+  <TSK A="TSK1" B="New recorded task" E="PFD1" G="1"/>
+</ISO11783_TaskData>

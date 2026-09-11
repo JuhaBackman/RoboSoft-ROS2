@@ -1,0 +1,5 @@
+int64 timestamp
+bool healthy
+float64 closest_forward_m
+float64 closest_lateral_m
+float64 maximum_speed_m_s

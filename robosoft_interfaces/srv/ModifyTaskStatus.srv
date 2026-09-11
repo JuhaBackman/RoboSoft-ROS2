@@ -1,0 +1,7 @@
+# Request
+int32 guidance_index      # Guidance line index to activate (-1 for none)
+uint8 new_status          # ISO 11783 TSK.G status (0..6)
+---
+# Response
+bool success              # True if successful
+string error_message      # Error description if failed

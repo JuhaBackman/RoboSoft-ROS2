@@ -1,0 +1,145 @@
+sick_tim5xx_simulator_node:
+  ros__parameters:
+    cloud_topic: "cloud"
+    cloud_timeout_s: 1.0
+    scan_rate_hz: 15.0
+    bind_address: "0.0.0.0"
+    port: 2112
+
+task_lidar_cloud_generator_node:
+  ros__parameters:
+    # Relative to robosoft_core's installed tasks directory unless absolute.
+    task_file: "metsapelto.XML"
+    odometry_topic: "vehicle/odometry"
+    output_topic: "cloud"
+    frame_id: "cloud"
+    publish_rate_hz: 15.0
+    lidar_x_m: 1.094
+    lidar_y_m: 0.0
+    lidar_yaw_rad: 0.0
+    pole_diameter_m: 0.07
+    range_min_m: 0.05
+    range_max_m: 25.0
+    odometry_timeout_s: 1.0
+    # Map origin is supplied by launch from the GNSS parameters below.
+
+vehicle_model_node:
+  ros__parameters:
+    speed_acceleration_response_s: 4.5
+    speed_deceleration_response_s: 1.35
+    curvature_response_s: 1.4
+    minimum_speed_m_s: -1.2
+    maximum_speed_m_s: 2.3
+    minimum_acceleration_m_s2: -5.2
+    maximum_acceleration_m_s2: 5.6
+    minimum_curvature_m_inv: -0.6
+    maximum_curvature_m_inv: 0.6
+    minimum_curvature_rate_m_inv_s: -0.28
+    maximum_curvature_rate_m_inv_s: 0.28
+    command_delay_s: 0.1
+    command_timeout_s: 0.5
+    frame_id: "odom"
+    child_frame_id: "base_link"
+    initial_x_m: 0.0
+    initial_y_m: 0.0
+    # First point heading of GPN0 in metsapelto.XML, normalized to [-pi, pi].
+    initial_yaw_rad: 2.188234692820414
+
+tractor_state_simulator_node:
+  ros__parameters:
+    publish_rate_hz: 10.0
+    engine_speed_rpm: 1500.0
+    maximum_power_time_min: 250
+    key_switch_active: true
+    guidance_ready: true
+    mechanical_lockout: false
+    rear_hitch_position_percent: 0.0
+    rear_hitch_in_work: 0
+    rear_pto_rpm: 0.0
+    rear_pto_engaged: false
+    aux_valve_count: 8
+
+gnss_serial_simulator_node:
+  ros__parameters:
+    device: "/tmp/aki_gnss_sim"
+    baud_rate: 230400
+    publish_rate_hz: 10.0
+    measurement_delay_s: 0.1
+    # First point of GPN0 in metsapelto.XML; local simulator pose starts at (0, 0).
+    reference_latitude: 62.64229118391599
+    reference_longitude: 27.05834726450000
+    altitude_m: 20.0
+    horizontal_stddev_m: 0.02
+    vertical_stddev_m: 0.04
+    fix_quality: 4
+    satellites: 18
+
+can_bridge_node:
+  ros__parameters:
+    interface: "can0"
+    disable_loopback: true
+
+address_manager_node:
+  ros__parameters:
+    # Match the steering/T-ECU server NAME expected by the AKI controller.
+    # AddressManager may claim a different SA, which TECUClient learns from
+    # the published address book by matching this stable ISO NAME.
+    ecu_name_hex: "A0001900AAA00006"
+    preferred_address: 240
+
+tecu_server_node:
+  ros__parameters:
+    tecu_class: 3
+    enable_guidance: true
+    enable_cruise: true
+    enable_rear_hitch: true
+    enable_rear_pto: true
+    enable_lighting: true
+    enable_power_management: true
+    aux_valve_count: 8
+    input_timeout_ms: 1000
+
+remote_simulator_node:
+  ros__parameters:
+    enabled: true
+    mode: 1
+    safety: true
+    start: false
+    deadman: true
+    speed_selector: 500
+    joystick_1_x: 0
+    joystick_1_y: 0
+    joystick_2_x: 0
+    joystick_2_y: 0
+    use_joy: false
+    joy_timeout_s: 0.5
+    axis_left_x: 0
+    axis_left_y: 1
+    axis_right_x: 3
+    axis_right_y: 4
+    axis_speed: 5
+    axis_left_x_sign: -1.0
+    axis_left_y_sign: 1.0
+    axis_right_x_sign: -1.0
+    axis_right_y_sign: 1.0
+    button_start: 0
+    button_mode_1: 2
+    button_mode_2: 1
+    button_mode_3: 3
+    button_enable_left: 4
+    button_deadman: 5
+    button_emergency_stop_share: 8
+    button_emergency_stop_options: 9
+
+aki_drive_controller_simulator_node:
+  ros__parameters:
+    joy_timeout_s: 0.5
+    axis_deadzone: 0.05
+    maximum_speed_m_s: 2.0
+    maximum_curvature_m_inv: 1.0
+    steering_sign: -1.0
+
+uvc_led_simulator_node:
+  ros__parameters:
+    enabled: true
+    sequence_duration_s: 20.0

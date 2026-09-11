@@ -1,0 +1,11 @@
+robosoft_gui_node:
+  ros__parameters:
+    # Local machine identity. RobotState messages for other robots are ignored.
+    robot_name: "robot"
+    robot_display_name: "ROBOT"
+    application_title: "RoboSoft"
+    gui_mode_selection_enabled: true
+
+    # Local task storage and map origin.
+    default_task_file: "EMPTY_TASK.XML"
+    task_directory: "/opt/ros2_ws/tasks"

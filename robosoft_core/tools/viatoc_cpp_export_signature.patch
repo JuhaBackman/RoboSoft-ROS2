@@ -1,0 +1,6 @@
+diff --git a/src/codegeneration/mpcexport.cpp b/src/codegeneration/mpcexport.cpp
+--- a/src/codegeneration/mpcexport.cpp
++++ b/src/codegeneration/mpcexport.cpp
+@@ -428,7 +428,7 @@ bool MPCexport::exportNMPCHeader(std::string fileName)
+-    ofs << "    REAL_TYPE calculateObjectiveAndDerivatives(REAL_TYPE *x, REAL_TYPE *u, REAL_TYPE *dG_dx, REAL_TYPE *dG_du);\\n";
++    ofs << "    REAL_TYPE calculateObjectiveAndDerivatives(REAL_TYPE *dG_dx, REAL_TYPE *dG_du, REAL_TYPE *x, REAL_TYPE *u);\\n";
