@@ -5,11 +5,11 @@
 
 #include <gtest/gtest.h>
 
-#include "state_estimator.hpp"
+#include "extended_kalman_filter.hpp"
 
-TEST(StateEstimator, InitializesAndProducesFiniteEstimate)
+TEST(ExtendedKalmanFilter, InitializesAndProducesFiniteEstimate)
 {
-  robosoft_core::StateEstimator estimator;
+  robosoft_core::ExtendedKalmanFilter estimator;
   estimator.setPositionMeasurement(10.0, 20.0, 0.25, true);
   estimator.setControls(0.0, 0.0);
 

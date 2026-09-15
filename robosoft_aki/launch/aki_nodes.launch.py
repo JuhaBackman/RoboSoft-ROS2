@@ -299,12 +299,28 @@ def generate_launch_description():
             ),
             Node(
                 package="robosoft_core",
-                executable="state_estimator_node",
-                name="state_estimator_node",
+                executable="lidar_object_detector_node",
+                name="lidar_object_detector_node",
                 output="screen",
                 parameters=[str(config)],
                 remappings=[
                     ("cloud", "/cloud"),
+                ],
+            ),
+            Node(
+                package="robosoft_core",
+                executable="landmark_clusterer_node",
+                name="landmark_clusterer_node",
+                output="screen",
+                parameters=[str(config)],
+            ),
+            Node(
+                package="robosoft_core",
+                executable="extended_kalman_filter_node",
+                name="extended_kalman_filter_node",
+                output="screen",
+                parameters=[str(config)],
+                remappings=[
                     ("vehicle/twist_measured", "/ISOBUS/tecu/twist_measured"),
                 ],
             ),

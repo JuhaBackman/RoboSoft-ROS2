@@ -1,17 +1,17 @@
 // Copyright 2026 Juha Backman / Natural Resources Institute Finland
 // SPDX-License-Identifier: GPL-3.0-only
 
-#include "state_estimator.hpp"
+#include "extended_kalman_filter.hpp"
 
 namespace robosoft_core
 {
 
-StateEstimator::StateEstimator()
+ExtendedKalmanFilter::ExtendedKalmanFilter()
 {
   ekf_.initializeCovariances();
 }
 
-void StateEstimator::setPositionMeasurement(
+void ExtendedKalmanFilter::setPositionMeasurement(
   double x, double y, double yaw, bool valid)
 {
   if (!initialized_ && valid) {
@@ -42,19 +42,19 @@ void StateEstimator::setPositionMeasurement(
   }
 }
 
-void StateEstimator::setControls(double speed_m_s, double curvature_m_inv)
+void ExtendedKalmanFilter::setControls(double speed_m_s, double curvature_m_inv)
 {
   ekf_.u[0] = speed_m_s;
   ekf_.u[1] = curvature_m_inv;
 }
 
-bool StateEstimator::update(std::vector<ClusterLandmark *> const & clusters)
+bool ExtendedKalmanFilter::update(std::vector<Landmark *> const & landmarks)
 {
   if (!initialized_) {
     return false;
   }
   constexpr int maximum_clusters = 6;
-  const int count = std::min<int>(clusters.size(), maximum_clusters);
+  const int count = std::min<int>(landmarks.size(), maximum_clusters);
 
   for (int index = 0; index < maximum_clusters * 2; ++index) {
     const int measurement = 3 + index;
@@ -74,26 +74,28 @@ bool StateEstimator::update(std::vector<ClusterLandmark *> const & clusters)
 
   for (int index = 0; index < count; ++index) {
     const int state = 3 + index * 2;
-    auto & cluster = *clusters[index];
-    ekf_.R[state * ekf_.numEKFMeasurements + state] = 2e-5;
-    ekf_.R[(state + 1) * ekf_.numEKFMeasurements + state + 1] = 2e-5;
-    ekf_.P[state * ekf_.numEKFStates + state] = cluster.covariance[0];
-    ekf_.P[state * ekf_.numEKFStates + state + 1] = cluster.covariance[1];
-    ekf_.P[(state + 1) * ekf_.numEKFStates + state] = cluster.covariance[2];
+    auto & landmark = *landmarks[index];
+    ekf_.R[state * ekf_.numEKFMeasurements + state] =
+      landmark.measurement_covariance[0];
+    ekf_.R[(state + 1) * ekf_.numEKFMeasurements + state + 1] =
+      landmark.measurement_covariance[3];
+    ekf_.P[state * ekf_.numEKFStates + state] = landmark.covariance[0];
+    ekf_.P[state * ekf_.numEKFStates + state + 1] = landmark.covariance[1];
+    ekf_.P[(state + 1) * ekf_.numEKFStates + state] = landmark.covariance[2];
     ekf_.P[(state + 1) * ekf_.numEKFStates + state + 1] =
-      cluster.covariance[3];
-    ekf_.y[state] = cluster.measurement.x;
-    ekf_.y[state + 1] = cluster.measurement.y;
-    ekf_.x[state] = cluster.center.x;
-    ekf_.x[state + 1] = cluster.center.y;
+      landmark.covariance[3];
+    ekf_.y[state] = landmark.measurement.x;
+    ekf_.y[state + 1] = landmark.measurement.y;
+    ekf_.x[state] = landmark.center.x;
+    ekf_.x[state + 1] = landmark.center.y;
   }
 
   ekf_.estimateStates();
   for (int index = 0; index < count; ++index) {
     const int state = 3 + index * 2;
-    auto & cluster = *clusters[index];
-    cluster.center = {ekf_.x[state], ekf_.x[state + 1]};
-    cluster.covariance = {
+    auto & landmark = *landmarks[index];
+    landmark.center = {ekf_.x[state], ekf_.x[state + 1]};
+    landmark.covariance = {
       ekf_.P[state * ekf_.numEKFStates + state],
       ekf_.P[state * ekf_.numEKFStates + state + 1],
       ekf_.P[(state + 1) * ekf_.numEKFStates + state],

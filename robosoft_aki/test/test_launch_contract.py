@@ -61,24 +61,35 @@ def test_path_tracking_has_one_final_tecu_command_publisher():
     assert "ros2_isobus" not in core_tracker
 
 
-def test_state_estimator_uses_generic_core_inputs():
-    """Keep remote and ISOBUS adaptation outside the shared estimator."""
+def test_localization_nodes_use_generic_core_inputs():
+    """Keep remote and ISOBUS adaptation outside shared localization."""
     launch = (
         SOURCE_ROOT / "robosoft_aki/launch/aki_nodes.launch.py"
     ).read_text(encoding="utf-8")
+    detector = (
+        SOURCE_ROOT
+        / "robosoft_core/src/localization/object_detection/lidar_object_detector_node.cpp"
+    ).read_text(encoding="utf-8")
+    clusterer = (
+        SOURCE_ROOT
+        / "robosoft_core/src/localization/clustering/landmark_clusterer_node.cpp"
+    ).read_text(encoding="utf-8")
     estimator = (
         SOURCE_ROOT
-        / "robosoft_core/src/localization/state_estimator/state_estimator_node.cpp"
+        / "robosoft_core/src/localization/extended_kalman_filter/extended_kalman_filter_node.cpp"
     ).read_text(encoding="utf-8")
     aki_main = (
         SOURCE_ROOT / "robosoft_aki/src/aki_main/aki_main_node.cpp"
     ).read_text(encoding="utf-8")
 
     assert 'package="robosoft_core"' in launch
-    assert 'executable="state_estimator_node"' in launch
+    assert 'executable="lidar_object_detector_node"' in launch
+    assert 'executable="landmark_clusterer_node"' in launch
+    assert 'executable="extended_kalman_filter_node"' in launch
     assert '"vehicle/twist_measured", "/ISOBUS/tecu/twist_measured"' in launch
     assert "kLocalizationModeTopic" in estimator
     assert "kMeasuredTwistTopic" in estimator
-    assert "ros2_isobus" not in estimator
-    assert "RemoteControlStatus" not in estimator
+    for source in (detector, clusterer, estimator):
+        assert "ros2_isobus" not in source
+        assert "RemoteControlStatus" not in source
     assert "kLocalizationModeTopic" in aki_main

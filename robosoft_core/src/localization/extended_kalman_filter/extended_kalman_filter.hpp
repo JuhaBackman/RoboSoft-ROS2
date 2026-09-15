@@ -10,19 +10,19 @@
 #include <vector>
 
 #include "VehicleEKF.h"
-#include "lidar_cluster.hpp"
+#include "landmark_types.hpp"
 
 namespace robosoft_core
 {
 
 /// Hand-written adapter around the unchanged VIATOC-generated VehicleEKF.
-class StateEstimator
+class ExtendedKalmanFilter
 {
 public:
-  StateEstimator();
+  ExtendedKalmanFilter();
   void setPositionMeasurement(double x, double y, double yaw, bool valid);
   void setControls(double speed_m_s, double curvature_m_inv);
-  bool update(const std::vector<ClusterLandmark *> & clusters);
+  bool update(const std::vector<Landmark *> & landmarks);
   bool initialized() const {return initialized_;}
   bool reliable() const {return reliable_;}
   double covarianceX() const {return ekf_.P[0];}

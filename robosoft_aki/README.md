@@ -238,14 +238,24 @@ With the workspace startup script, use:
 ./start_aki_gui.sh virtual enable_uvc_sequence:=false
 ```
 
-The configured lidar position is the launch default. All GNSS and lidar
-static-transform components can be overridden without changing source code,
-for example:
+The launch-owned `base_link -> lidar_link` transform is the controller's
+single lidar-mount definition. The SICK driver publishes the cloud in
+`lidar_link`; localization and safety transform it to `base_link` through
+TF2. The startup scripts disable the SICK driver's own default 10 Hz TF output
+to prevent a second, conflicting parent for `lidar_link`. All GNSS and lidar
+static transforms can be overridden without changing source code, for example:
 
 ```bash
 ros2 launch robosoft_aki aki_nodes.launch.py \
   lidar_x:=1.094 lidar_z:=0.35 gnss_x:=-0.20 gnss_z:=1.80
 ```
+
+AKI's committed safety-corridor x-boundaries are expressed from `base_link`.
+They include the default `1.094 m` longitudinal mount offset so their physical
+clearances match the earlier sensor-relative configuration. After this
+conversion the safety boundaries stay fixed to the vehicle when the lidar is
+moved; update the TF mount transform (and the separate simulator sensor model),
+not the vehicle safety geometry.
 
 NTRIP is disabled in the committed configuration because credentials and
 receiver device names are deployment-specific. Configure these locally and

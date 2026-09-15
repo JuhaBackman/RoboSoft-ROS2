@@ -32,7 +32,7 @@ motion distortion or a ground plane.
 | `reference_latitude`, `reference_longitude` | example GNSS origin | Local ENU origin |
 | `odometry_topic` | `vehicle/odometry` | Vehicle `nav_msgs/Odometry` input |
 | `output_topic` | `cloud` | Generated `sensor_msgs/PointCloud2` output |
-| `frame_id` | `cloud` | Output cloud frame |
+| `frame_id` | `lidar_link` | Output cloud sensor frame |
 | `publish_rate_hz` | `15.0` | Cloud rate |
 | `lidar_x_m`, `lidar_y_m`, `lidar_yaw_rad` | `1.094`, `0`, `0` | Sensor mount |
 | `pole_diameter_m` | `0.07` | Circular obstacle diameter |

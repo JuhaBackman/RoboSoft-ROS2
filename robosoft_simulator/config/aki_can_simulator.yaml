@@ -12,7 +12,7 @@ task_lidar_cloud_generator_node:
     task_file: "metsapelto.XML"
     odometry_topic: "vehicle/odometry"
     output_topic: "cloud"
-    frame_id: "cloud"
+    frame_id: "lidar_link"
     publish_rate_hz: 15.0
     lidar_x_m: 1.094
     lidar_y_m: 0.0

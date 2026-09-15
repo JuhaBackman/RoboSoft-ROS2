@@ -51,7 +51,7 @@ public:
     max_range_ = declare_parameter<double>("range_max_m", 25.0);
     timeout_ = declare_parameter<double>("odometry_timeout_s", 1.0);
     const double publish_rate = declare_parameter<double>("publish_rate_hz", 15.0);
-    frame_id_ = declare_parameter<std::string>("frame_id", "cloud");
+    frame_id_ = declare_parameter<std::string>("frame_id", "lidar_link");
     const auto odometry_topic =
       declare_parameter<std::string>("odometry_topic", "vehicle/odometry");
     const auto output_topic =

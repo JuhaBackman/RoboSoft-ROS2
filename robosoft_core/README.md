@@ -39,7 +39,9 @@ related implementation files share one lower-case directory below the group.
 | `ntrip_client_node` | GNSS | NTRIP v1/v2 RTCM corrections |
 | `gps_to_cartesian_node` | GNSS | Shared map origin and local odometry |
 | `robosoft_gui_node` | GUI | Optional operator interface |
-| `state_estimator_node` | Localization | GNSS/lidar state estimation and TASK landmarks |
+| `lidar_object_detector_node` | Localization | Ordered lidar scan to vehicle-frame landmark detections |
+| `landmark_clusterer_node` | Localization | Detection association with persistent TASK landmarks |
+| `extended_kalman_filter_node` | Localization | GNSS, motion and associated-landmark state estimation |
 | `route_control_node` | Navigation | Route recording, interpolation and segment selection |
 | `path_tracking_simple_node` | Navigation | Lightweight curvature/error feedback controller |
 | `path_tracking_nmpc_node` | Navigation | VIATOC-generated nonlinear predictive controller |
@@ -117,7 +119,7 @@ colcon test-result --verbose
 ```
 
 The test suite covers NMEA and NTRIP protocols, TASK XML and path handling,
-path tracking, lidar safety, landmark clustering and the state-estimator
+path tracking, lidar safety, landmark detection and association, and the EKF
 adapter.
 
 ## Safety

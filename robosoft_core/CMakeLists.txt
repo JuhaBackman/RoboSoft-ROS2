@@ -18,6 +18,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tinyxml2 REQUIRED)
 
@@ -142,34 +143,58 @@ ament_target_dependencies(task_xml
 )
 target_link_libraries(task_xml tinyxml2::tinyxml2)
 
-# VIATOC generated EKF sources are compiled unchanged. ROS adaptation and
-# lidar association remain in separate hand-written translation units.
-add_library(state_estimator_core
-  src/localization/state_estimator/generated/ekf.cpp
-  src/localization/state_estimator/generated/VehicleEKF.cpp
-  src/localization/state_estimator/lidar_cluster.cpp
-  src/localization/state_estimator/state_estimator.cpp
+# VIATOC-generated EKF sources are compiled unchanged. Object detection,
+# association and the EKF adapter remain separate hand-written units.
+add_library(localization_core
+  src/localization/extended_kalman_filter/generated/ekf.cpp
+  src/localization/extended_kalman_filter/generated/VehicleEKF.cpp
+  src/localization/object_detection/lidar_object_detector.cpp
+  src/localization/clustering/landmark_clusterer.cpp
+  src/localization/extended_kalman_filter/extended_kalman_filter.cpp
 )
-target_include_directories(state_estimator_core PUBLIC
-  src/localization/state_estimator
-  src/localization/state_estimator/generated
+target_include_directories(localization_core PUBLIC
+  src/localization/common
+  src/localization/object_detection
+  src/localization/clustering
+  src/localization/extended_kalman_filter
+  src/localization/extended_kalman_filter/generated
 )
 
-add_executable(state_estimator_node
-  src/localization/state_estimator/state_estimator_node.cpp
+add_executable(lidar_object_detector_node
+  src/localization/object_detection/lidar_object_detector_node.cpp
 )
-target_include_directories(state_estimator_node PRIVATE
-  src/localization/state_estimator
-  src/localization/state_estimator/generated
+target_include_directories(lidar_object_detector_node PRIVATE src/common)
+target_link_libraries(lidar_object_detector_node localization_core)
+ament_target_dependencies(lidar_object_detector_node
+  geometry_msgs
+  rclcpp
+  robosoft_interfaces
+  sensor_msgs
+  tf2
+  tf2_ros
 )
-target_link_libraries(state_estimator_node state_estimator_core)
-ament_target_dependencies(state_estimator_node
+
+add_executable(landmark_clusterer_node
+  src/localization/clustering/landmark_clusterer_node.cpp
+)
+target_link_libraries(landmark_clusterer_node localization_core)
+ament_target_dependencies(landmark_clusterer_node
   geometry_msgs
   nav_msgs
   rclcpp
   robosoft_interfaces
   sensor_msgs
-  std_msgs
+)
+
+add_executable(extended_kalman_filter_node
+  src/localization/extended_kalman_filter/extended_kalman_filter_node.cpp
+)
+target_link_libraries(extended_kalman_filter_node localization_core)
+ament_target_dependencies(extended_kalman_filter_node
+  geometry_msgs
+  nav_msgs
+  rclcpp
+  robosoft_interfaces
   tf2_ros
 )
 
@@ -245,12 +270,16 @@ add_executable(lidar_safety_node
   src/safety/lidar_safety/lidar_safety_node.cpp
 )
 target_include_directories(lidar_safety_node PRIVATE
+  src/common
   src/safety/lidar_safety
 )
 ament_target_dependencies(lidar_safety_node
+  geometry_msgs
   rclcpp
   robosoft_interfaces
   sensor_msgs
+  tf2
+  tf2_ros
 )
 # ==========================================
 # TASK MANAGER NODE
@@ -281,14 +310,16 @@ install(TARGETS
 )
 install(TARGETS
   gps_to_cartesian_node
+  extended_kalman_filter_node
+  landmark_clusterer_node
   lidar_safety_node
+  lidar_object_detector_node
   nmea0183_parser_node
   ntrip_client_node
   path_tracking_simple_node
   path_tracking_nmpc_node
   route_control_node
   serial_node
-  state_estimator_node
   task_manager_node
   DESTINATION lib/${PROJECT_NAME}
 )
@@ -360,27 +391,41 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_lidar_safety test/safety/test_lidar_safety.cpp)
   target_include_directories(test_lidar_safety PRIVATE
+    src/common
     src/safety/lidar_safety
   )
+  ament_target_dependencies(test_lidar_safety geometry_msgs)
 
   ament_add_gtest(
-    test_lidar_cluster
-    test/localization/test_lidar_cluster.cpp
-    src/localization/state_estimator/lidar_cluster.cpp
+    test_lidar_object_detector
+    test/localization/test_lidar_object_detector.cpp
+    src/localization/object_detection/lidar_object_detector.cpp
   )
-  target_include_directories(test_lidar_cluster PRIVATE
-    src/localization/state_estimator
+  target_include_directories(test_lidar_object_detector PRIVATE
+    src/localization/common
+    src/localization/object_detection
   )
 
   ament_add_gtest(
-    test_state_estimator
-    test/localization/test_state_estimator.cpp
+    test_landmark_clusterer
+    test/localization/test_landmark_clusterer.cpp
+    src/localization/clustering/landmark_clusterer.cpp
   )
-  target_include_directories(test_state_estimator PRIVATE
-    src/localization/state_estimator
-    src/localization/state_estimator/generated
+  target_include_directories(test_landmark_clusterer PRIVATE
+    src/localization/common
+    src/localization/clustering
   )
-  target_link_libraries(test_state_estimator state_estimator_core)
+
+  ament_add_gtest(
+    test_extended_kalman_filter
+    test/localization/test_extended_kalman_filter.cpp
+  )
+  target_include_directories(test_extended_kalman_filter PRIVATE
+    src/localization/common
+    src/localization/extended_kalman_filter
+    src/localization/extended_kalman_filter/generated
+  )
+  target_link_libraries(test_extended_kalman_filter localization_core)
 endif()
 
 ament_export_include_directories(include)

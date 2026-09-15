@@ -54,6 +54,12 @@ constexpr char kLidarSafetyStatusTopic[] = "robosoft/lidar/safety_status";
 constexpr char kLidarClusterObservationsTopic[] =
   "robosoft/lidar/cluster_observations";
 constexpr char kLidarLandmarksTopic[] = "robosoft/lidar/landmarks";
+constexpr char kLandmarkDetectionsTopic[] =
+  "localization/landmark_detections";
+constexpr char kAssociatedLandmarksTopic[] =
+  "localization/associated_landmarks";
+constexpr char kLandmarkEstimatesTopic[] =
+  "localization/landmark_estimates";
 constexpr char kStateEstimatorStatusTopic[] =
   "robosoft/state_estimator/status";
 constexpr char kRawOdometryTopic[] = "odometry/raw";

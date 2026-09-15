@@ -26,6 +26,10 @@ set(msg_files
   "msg/LidarCluster.msg"
   "msg/LidarClusterObservation.msg"
   "msg/LidarClusterObservationArray.msg"
+  "msg/LandmarkDetection.msg"
+  "msg/LandmarkDetectionArray.msg"
+  "msg/AssociatedLandmark.msg"
+  "msg/AssociatedLandmarkArray.msg"
   "msg/StateEstimatorStatus.msg"
   "msg/TimerPerformance.msg"
 )

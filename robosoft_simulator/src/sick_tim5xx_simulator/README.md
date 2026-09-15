@@ -61,8 +61,12 @@ On the controller computer, point the real driver to the simulator computer:
 ```bash
 ros2 run sick_scan_xd sick_generic_caller \
   "$(ros2 pkg prefix --share sick_scan_xd)/launch/sick_tim_5xx.launch" \
-  hostname:=192.168.1.100
+  hostname:=192.168.1.100 frame_id:=lidar_link tf_publish_rate:=0.0
 ```
+
+The application launch publishes the sensor mount as a static TF. Disable the
+driver's default 10 Hz TF publisher as above to avoid two publishers for the
+same lidar transform.
 
 When both nodes run on one machine, use separate ROS domains or remap the
 simulator input. Otherwise the driver's output `cloud` would share a name with

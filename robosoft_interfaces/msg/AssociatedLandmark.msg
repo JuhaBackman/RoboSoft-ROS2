@@ -1,0 +1,14 @@
+# A vehicle-frame observation associated with a persistent map landmark.
+uint32 landmark_id
+geometry_msgs/Point measurement
+geometry_msgs/Point map_position
+float64 measurement_covariance_xx
+float64 measurement_covariance_xy
+float64 measurement_covariance_yx
+float64 measurement_covariance_yy
+float64 map_covariance_xx
+float64 map_covariance_xy
+float64 map_covariance_yx
+float64 map_covariance_yy
+string object_type
+float32 confidence

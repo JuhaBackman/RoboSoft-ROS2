@@ -1,19 +1,36 @@
 # Localization
 
-Shared vehicle-state estimation and lidar-landmark association.
+RoboSoft localization combines a local GNSS pose, vehicle motion and mapped
+landmark observations. Object recognition, data association and state
+estimation are separate stages so that another detector can produce landmark
+observations without changing the clustering or EKF implementation.
+
+```text
+sensor_msgs/PointCloud2
+          |
+          v
+LidarObjectDetector       ordered scan -> vehicle-frame object centres
+          |
+          v
+LandmarkClusterer         detections -> associated TASK/map landmarks
+          |
+          v
+ExtendedKalmanFilter      GNSS + motion + associated landmarks -> odometry
+```
 
 ## Components
 
-| Node or library | Responsibility |
-| --- | --- |
-| `state_estimator_node` | Selects localization mode, runs the EKF adapter and publishes vehicle odometry |
-| `state_estimator` | Hand-written adapter around the generated filter |
-| `lidar_cluster` | Associates point-cloud observations with TASK landmarks |
-| `generated` | VIATOC-generated EKF and vehicle-model sources |
+| Component | Responsibility | Documentation |
+| --- | --- | --- |
+| `object_detection` | Extract compact foreground objects from an ordered planar lidar scan | [Object detection](object_detection/README.md) |
+| `clustering` | Associate sensor-independent detections with persistent map landmarks | [Clustering and association](clustering/README.md) |
+| `extended_kalman_filter` | Fuse vehicle and landmark states through the generated EKF | [Extended Kalman filter](extended_kalman_filter/README.md) |
 
-The files under `state_estimator/generated` are generated artifacts and must
-remain unchanged. ROS subscriptions, coordinate conversion and landmark logic
-belong in the hand-written translation units around them.
+The common `LandmarkDetection` type contains a two-dimensional observation in
+the vehicle frame. This boundary is intentionally independent of lidar scan
+format and object class. A camera, another lidar detector or a semantic
+detector can therefore feed the same association and estimation stages when it
+can produce compatible, mapped point landmarks.
 
 ## Localization modes
 
@@ -25,42 +42,32 @@ belong in the hand-written translation units around them.
 | `GNSS_LIDAR_EKF` | Fuse GNSS motion and lidar landmark observations |
 | `LANDMARK_DEAD_RECKONING` | Continue landmark/dead-reckoning estimation without normal GNSS correction |
 
-The application state machine chooses the mode. The estimator is independent
-of platform-specific operator-control and vehicle-bus interfaces.
+The application state machine chooses the mode. Localization remains
+independent of the vehicle bus, actuators and operator controls.
 
-## Interfaces
+## Coordinate frames
 
-### Subscriptions
+- `/map_origin` defines the WGS84 origin of the local Cartesian map.
+- `odometry/raw`, map landmarks and estimated `odometry` use `odom_frame`.
+- Detector output and EKF landmark measurements use `base_frame`, with `x`
+  forward and `y` left.
+- The detector resolves the point-cloud sensor frame to its configured vehicle
+  frame through TF2.
+- `extended_kalman_filter_node` can publish the `odom -> base_link` transform.
 
-| Topic | Type | Purpose |
+The TASK manager retains landmark coordinates in WGS84. The clusterer converts
+them once to the shared local frame using `/map_origin`.
+
+## ROS pipeline
+
+The implementation is divided into three independently replaceable nodes:
+
+| Node | Input | Output |
 | --- | --- | --- |
-| `odometry/raw` | `nav_msgs/Odometry` | Local GNSS-derived input |
-| `localization/mode` | `LocalizationMode` | Transient-local estimator mode |
-| `vehicle/twist_measured` | `geometry_msgs/TwistStamped` | Signed measured vehicle motion |
-| `cloud` | `sensor_msgs/PointCloud2` | Lidar point cloud |
-| `task_manager/task_loaded` | `TaskData` | TASK lidar landmarks |
-| `/map_origin` | `sensor_msgs/NavSatFix` | WGS84 origin used for TASK conversion |
+| `lidar_object_detector_node` | `sensor_msgs/PointCloud2` on `cloud` | `LandmarkDetectionArray` on `localization/landmark_detections` |
+| `landmark_clusterer_node` | Detections, `odometry`, TASK data and `/map_origin` | `AssociatedLandmarkArray` on `localization/associated_landmarks` |
+| `extended_kalman_filter_node` | Raw odometry, measured motion, localization mode and associated landmarks | Filtered `odometry`, estimator status and `localization/landmark_estimates` |
 
-### Publications
-
-| Topic | Type | Purpose |
-| --- | --- | --- |
-| `odometry` | `nav_msgs/Odometry` | Selected or estimated local vehicle state |
-| `robosoft/lidar/cluster_observations` | `LidarClusterObservationArray` | Associated landmark observations |
-| `robosoft/lidar/landmarks` | `geometry_msgs/PoseArray` | Complete TASK obstacle map in `odom_frame`; reliable/transient-local, refreshed on task or map-origin changes |
-| `robosoft/state_estimator/status` | `StateEstimatorStatus` | Mode, validity and estimator reliability |
-| `odom -> base_link` | TF2 | Optional vehicle transform |
-
-When lidar mapping is enabled, new clusters are stored through
-`task_manager/update_lidar_clusters`.
-
-## Parameters
-
-| Parameter | Default | Description |
-| --- | --- | --- |
-| `lidar_mapping` | `false` | Record new lidar landmarks instead of only matching them |
-| `odom_frame` | `odom` | Output odometry frame |
-| `base_frame` | `base_link` | Vehicle frame |
-| `publish_tf` | `true` | Publish `odom -> base_link` |
-| `lidar_x_offset` | `1.094` | Lidar longitudinal offset from vehicle origin in metres |
-| `lidar_angle_error` | `0.0` | Static lidar yaw correction in radians |
+The estimate topic feeds updated map-landmark states back to the clusterer.
+Every associated array carries a TASK map identifier, so delayed estimates
+cannot modify landmarks belonging to a newly loaded task.

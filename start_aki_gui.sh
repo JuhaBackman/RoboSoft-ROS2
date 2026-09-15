@@ -206,7 +206,8 @@ if [[ "${START_SICK_LIDAR}" == "true" ]]; then
 
   echo "Starting SICK TiM5xx at ${SICK_LIDAR_HOSTNAME}..."
   ros2 run sick_scan_xd sick_generic_caller \
-    "${SICK_LAUNCH}" "hostname:=${SICK_LIDAR_HOSTNAME}" &
+    "${SICK_LAUNCH}" "hostname:=${SICK_LIDAR_HOSTNAME}" \
+    "frame_id:=lidar_link" "tf_publish_rate:=0.0" &
   SICK_PID=$!
   sleep 1
   if ! kill -0 "${SICK_PID}" 2>/dev/null; then

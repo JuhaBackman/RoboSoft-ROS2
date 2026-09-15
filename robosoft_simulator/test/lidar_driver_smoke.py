@@ -111,7 +111,7 @@ def main():
                    "--log-level", "sick_tim5xx_simulator_node:=debug"], "simulator.log")
             time.sleep(0.5)
             command = [driver, launch, "hostname:=127.0.0.1", "port:=22112",
-                       "tf_publish_rate:=0.0"]
+                       "frame_id:=lidar_link", "tf_publish_rate:=0.0"]
             old_driver = start(command, "driver.log")
             receive(0, 4.965)
             receive(1, 3.965)

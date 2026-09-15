@@ -4,6 +4,7 @@
 #include "lidar_safety_node.hpp"
 
 #include "lidar_safety.hpp"
+#include "point_transform.hpp"
 #include "robosoft_interfaces/topics.hpp"
 
 #include <chrono>
@@ -12,7 +13,9 @@
 #include <stdexcept>
 #include <vector>
 
+#include <geometry_msgs/msg/transform_stamped.hpp>
 #include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <tf2/exceptions.hpp>
 
 using namespace std::chrono_literals;
 
@@ -38,6 +41,28 @@ LidarSafetyNode::LidarSafetyNode(const rclcpp::NodeOptions & options)
   speed_ramp_per_s_ = declare_parameter<double>("speed_ramp_per_s", 0.5);
   maximum_speed_m_s_ = declare_parameter<double>("maximum_speed_m_s", 2.0);
   cloud_timeout_ms_ = declare_parameter<int>("cloud_timeout_ms", 500);
+  target_frame_ = declare_parameter<std::string>("target_frame", "base_link");
+  transform_timeout_ms_ = declare_parameter<int>("transform_timeout_ms", 50);
+  if (!std::isfinite(minimum_forward_distance_m_) ||
+    !std::isfinite(forward_corridor_half_width_m_) ||
+    !std::isfinite(forward_ignore_distance_m_) ||
+    !std::isfinite(side_forward_min_m_) ||
+    !std::isfinite(side_forward_max_m_) ||
+    !std::isfinite(side_ignore_distance_m_) ||
+    !std::isfinite(speed_ramp_per_s_) ||
+    !std::isfinite(maximum_speed_m_s_) ||
+    forward_corridor_half_width_m_ <= 0.0 ||
+    forward_ignore_distance_m_ >= minimum_forward_distance_m_ ||
+    side_forward_min_m_ >= side_forward_max_m_ ||
+    side_ignore_distance_m_ < 0.0 || speed_ramp_per_s_ < 0.0 ||
+    maximum_speed_m_s_ < 0.0 || cloud_timeout_ms_ <= 0 ||
+    target_frame_.empty() || transform_timeout_ms_ < 0)
+  {
+    throw std::invalid_argument("Invalid lidar safety geometry or timing parameters");
+  }
+  tf_buffer_ = std::make_unique<tf2_ros::Buffer>(get_clock());
+  tf_listener_ =
+    std::make_unique<tf2_ros::TransformListener>(*tf_buffer_);
 
   cloud_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
     "cloud", rclcpp::SensorDataQoS(),
@@ -60,6 +85,28 @@ LidarSafetyNode::LidarSafetyNode(const rclcpp::NodeOptions & options)
 void LidarSafetyNode::onPointCloud(
   const sensor_msgs::msg::PointCloud2 & message)
 {
+  if (message.header.frame_id.empty()) {
+    RCLCPP_WARN_THROTTLE(
+      get_logger(), *get_clock(), 5000,
+      "Ignoring lidar cloud with an empty frame_id");
+    publishUnavailable();
+    return;
+  }
+  geometry_msgs::msg::TransformStamped sensor_to_target;
+  try {
+    sensor_to_target = tf_buffer_->lookupTransform(
+      target_frame_, message.header.frame_id, message.header.stamp,
+      rclcpp::Duration::from_seconds(
+        static_cast<double>(transform_timeout_ms_) / 1000.0));
+  } catch (const tf2::TransformException & error) {
+    RCLCPP_WARN_THROTTLE(
+      get_logger(), *get_clock(), 5000,
+      "Cannot transform lidar cloud from '%s' to '%s': %s",
+      message.header.frame_id.c_str(), target_frame_.c_str(), error.what());
+    publishUnavailable();
+    return;
+  }
+
   std::vector<LidarPoint2D> points;
   points.reserve(
     static_cast<std::size_t>(message.width) *
@@ -68,7 +115,10 @@ void LidarSafetyNode::onPointCloud(
     sensor_msgs::PointCloud2ConstIterator<float> x(message, "x");
     sensor_msgs::PointCloud2ConstIterator<float> y(message, "y");
     for (; x != x.end(); ++x, ++y) {
-      points.push_back({static_cast<double>(*x), static_cast<double>(*y)});
+      const auto transformed = transformPoint(
+        {static_cast<double>(*x), static_cast<double>(*y), 0.0},
+        sensor_to_target.transform);
+      points.push_back({transformed.x, transformed.y});
     }
   } catch (const std::runtime_error & error) {
     RCLCPP_ERROR_THROTTLE(

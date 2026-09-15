@@ -19,7 +19,7 @@ safety information that standard messages do not express.
 | TASK and routes | `TaskData`, `GuidanceLine`, `RoutePoint`, `RouteStatus` | ISO TASK state and route metadata beyond `nav_msgs/Path` |
 | Task services | `SelectTask`, `SaveTask`, `ModifyTaskStatus` | Runtime task ownership and persistence |
 | Implements | `ImplementCommand`, `ImplementStatus` | Logical implement modes and feedback |
-| Localization | `LocalizationMode`, `StateEstimatorStatus`, `LidarCluster`, `LidarClusterObservation`, `LidarClusterObservationArray`, `UpdateLidarClusters` | Estimator selection, quality and TASK landmarks |
+| Localization | `LocalizationMode`, `StateEstimatorStatus`, `LandmarkDetectionArray`, `AssociatedLandmarkArray`, `LidarCluster`, `LidarClusterObservationArray`, `UpdateLidarClusters` | Detection, association, estimator quality and TASK landmarks |
 | Safety | `LidarSafetyStatus` | Obstacle-derived speed limit and health |
 | Runtime performance | `TimerPerformance` | Timer period, callback duration, remaining margin, lateness and cumulative deadline misses |
 
@@ -27,6 +27,15 @@ Canonical topic and service names for C++ consumers are declared in
 [`include/robosoft_interfaces/topics.hpp`](include/robosoft_interfaces/topics.hpp).
 Applications should use these constants or equivalent launch remappings rather
 than duplicate names in source code.
+
+### Landmark pipeline
+
+`LandmarkDetectionArray` carries sensor-independent point observations in the
+frame named by its header. `AssociatedLandmarkArray` adds persistent landmark
+identities, map positions, measurement and map covariance, semantic object
+type, confidence, coordinate-frame names and the active TASK map identifier.
+This allows detection, association and estimation nodes to be replaced
+independently without coupling the interfaces to a particular lidar model.
 
 ## Design rules
 

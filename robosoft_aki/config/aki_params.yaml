@@ -25,7 +25,9 @@ aki_main_node:
       - "/aki_uvc_sequence_node"
       - "/uvc_led_node"
       - "/lidar_safety_node"
-      - "/state_estimator_node"
+      - "/lidar_object_detector_node"
+      - "/landmark_clusterer_node"
+      - "/extended_kalman_filter_node"
       - "/serial_node"
       - "/nmea0183_parser_node"
       - "/ntrip_client_node"
@@ -62,11 +64,26 @@ ntrip_client_node:
     reconnect_delay_s: 10.0
     connect_timeout_s: 10.0
 
-state_estimator_node:
+lidar_object_detector_node:
+  ros__parameters:
+    target_frame: "base_link"
+    transform_timeout_ms: 50
+    lidar_edge_threshold: 0.20
+    lidar_object_size_min: 0.02
+    lidar_object_size_max: 0.08
+
+landmark_clusterer_node:
   ros__parameters:
     lidar_mapping: false
-    lidar_x_offset: 1.094
-    lidar_angle_error: 0.0
+    odom_frame: "odom"
+    landmark_association_distance: 0.5
+    max_active_landmarks: 6
+
+extended_kalman_filter_node:
+  ros__parameters:
+    odom_frame: "odom"
+    base_frame: "base_link"
+    publish_tf: true
 
 path_tracking_node:
   ros__parameters:
@@ -140,15 +157,19 @@ nmea2000_server:
 
 lidar_safety_node:
   ros__parameters:
-    minimum_forward_distance_m: 0.4
+    # Longitudinal boundaries use base_link. These preserve the earlier
+    # lidar-relative limits with the lidar mounted 1.094 m ahead of base_link.
+    minimum_forward_distance_m: 1.494
     forward_corridor_half_width_m: 0.4
-    forward_ignore_distance_m: 0.05
-    side_forward_min_m: -0.28
-    side_forward_max_m: 0.35
+    forward_ignore_distance_m: 1.144
+    side_forward_min_m: 0.814
+    side_forward_max_m: 1.444
     side_ignore_distance_m: 0.05
     speed_ramp_per_s: 0.5
     maximum_speed_m_s: 2.0
     cloud_timeout_ms: 500
+    target_frame: "base_link"
+    transform_timeout_ms: 50
 
 route_control_node:
   ros__parameters:
