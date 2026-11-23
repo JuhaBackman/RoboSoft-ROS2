@@ -15,6 +15,6 @@
   TaskControllerManufacturer="RoboSoft"
   TaskControllerVersion="1.0"
   DataTransferOrigin="2">
-  <PFD A="PFD1" B="Recorded field"/>
+  <PFD A="PFD1" C="Recorded field" D="0"/>
   <TSK A="TSK1" B="New recorded task" E="PFD1" G="1"/>
 </ISO11783_TaskData>

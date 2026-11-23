@@ -11,8 +11,9 @@ adapters.
 RoboSoft uses ISO 11783 for both machine communication and robot task
 descriptions. Communication is provided by the separate
 [ROS2ISOBUS](https://github.com/AGRIForward/ROS2ISOBUS) package. RoboSoft
-implements the loading, processing and saving of ISO 11783-10 TASK data and
-uses that structure to describe the routes and operations assigned to a robot.
+implements the mission-oriented subset of ISO 11783-10 TASK data documented in
+`robosoft_core/src/task/README.md` and uses that structure to describe the
+routes and operations assigned to a robot. It is not a complete ISOXML parser.
 
 The repository includes AKI as an example application and a hardware-interface
 simulator for development and integration testing.

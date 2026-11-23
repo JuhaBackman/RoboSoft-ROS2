@@ -7,8 +7,10 @@ uint8 STATUS_COMPLETED=4
 uint8 STATUS_TEMPLATE=5
 uint8 STATUS_CANCELED=6
 
-string task_name          # Task identifier
-string farm_name          # Farm/field name
+string task_name          # Human-readable ISO TaskDesignator
+string task_id            # ISO TaskId; generated as TSK1 when absent
+string farm_name          # Human-readable ISO FarmDesignator
+string farm_id            # ISO FarmId; generated as FRM1 when absent
 string version            # Task data version
 int64 timestamp           # Creation timestamp [unix seconds]
 
@@ -21,7 +23,8 @@ string[] zone_names       # Zone names (e.g., headland, exclusion)
 geometry_msgs/Polygon[] zones       # Zone polygons (WGS84 lat/lon)
 
 # Partfield information
-string partfield_name     # Field/partfield name
+string partfield_name     # Human-readable ISO PartfieldDesignator
+string partfield_id       # ISO PartfieldId; generated as PFD1 when absent
 geometry_msgs/Polygon partfield_boundary  # Field boundary (WGS84)
 
 # Persistent lidar landmarks used by AKI localization.

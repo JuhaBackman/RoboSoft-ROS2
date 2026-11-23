@@ -2,7 +2,14 @@
 
 All notable public-facing changes to this project are documented in this file.
 
-## Unreleased
+## 2026-11-23 – TASK serialization corrections
+
+- Corrected the supported ISO 11783-10 TASK mappings for point altitude,
+  farm and partfield metadata, guidance allocation stamps and XML IDs.
+- Prevented incomplete device descriptions from being written as invalid
+  ISOXML and clarified the supported TASK subset.
+
+## 2026-09-13 – Localization node separation
 
 - Split localization into independently replaceable object-detection,
   landmark-association and Extended Kalman Filter ROS 2 nodes.
@@ -12,7 +19,7 @@ All notable public-facing changes to this project are documented in this file.
 - Disabled the SICK driver's duplicate dynamic TF and suppressed stale
   pre-TASK landmark-estimate feedback.
 
-## 2026-09-11 – Initial public release
+## 2026-09-06 – Initial public release
 
 - Added the reusable RoboSoft ROS 2 control framework with ISO 11783-10 TASK
   loading, saving, route recording and task execution.

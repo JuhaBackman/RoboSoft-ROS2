@@ -28,13 +28,22 @@ struct GuidancePattern;
 struct OperationTechnique;
 struct CulturalPractice;
 
+/// Required ISO 11783-10 AllocationStamp data associated with one GAN.
+struct GuidanceAllocationStamp
+{
+  std::string start;
+  uint8_t type{4};  // 1 = planned, 4 = effective
+};
+
 /**
- * @brief Task class for full ISO 11783 XML serialization/deserialization
+ * @brief Parser and writer for the ISO 11783-10 subset used by RoboSoft
  *
  * Handles the ISO 11783-10 TASKDATA structures used by RoboSoft. Runtime
  * messages may contain RoboSoft route metadata that the standard schema does
- * not define. On disk that metadata is written either as explicit extension
- * XML elements or as JSON in an ISO designator, selected by ExtensionFormat.
+ * not define. On disk that metadata is written either as RoboSoft-specific
+ * extension XML elements or as RoboSoft-specific JSON in an ISO designator,
+ * selected by ExtensionFormat. Files using either extension are not claimed
+ * to be schema-conformant or generally interoperable ISOXML exchange files.
  *
  * Obsolete bracket-encoded designator extensions are intentionally not parsed.
  *
@@ -92,6 +101,7 @@ public:
   std::map<std::string, GuidanceGroup> guidance_groups;
   std::map<std::string, GuidancePattern> guidance_patterns;
   std::vector<robosoft_interfaces::msg::GuidanceLine> guidance_allocations;
+  std::map<std::string, GuidanceAllocationStamp> guidance_allocation_stamps;
   std::vector<robosoft_interfaces::msg::LidarCluster> lidar_clusters;
 
   // Operation techniques
@@ -111,6 +121,9 @@ private:
   // Extension selection affects serialization and accepted modern metadata,
   // but never enables the obsolete bracket-designator parser.
   ExtensionFormat extension_format_{ExtensionFormat::XML_ELEMENTS};
+  // Preserves optional PNT.E presence for directly loaded guidance patterns.
+  // Newly generated ROS points write their numeric altitude, including zero.
+  std::map<std::string, std::vector<bool>> guidance_altitude_present_;
   // XML parsing - Root level
   bool parseRoot(void * xml_elem);
 
@@ -181,9 +194,8 @@ private:
 struct Farm
 {
   std::string farm_id;
-  std::string farm_name;
   std::string farm_designator;
-  std::string country_code;
+  std::string farm_country;
 };
 
 struct Customer
@@ -212,10 +224,11 @@ struct Device
 struct Partfield
 {
   std::string partfield_id;
-  std::string partfield_name;
+  std::string partfield_code;
   std::string partfield_designator;
+  std::string customer_id_ref;
   std::string farm_id_ref;
-  double area;  // Square meters
+  uint64_t area{0};  // Square metres, ISO PFD.D
   std::vector<geometry_msgs::msg::Point32> boundary_polygon;
 };
 

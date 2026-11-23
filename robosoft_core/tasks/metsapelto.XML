@@ -1261,6 +1261,8 @@
     </PFD>
     <TSK A="TSK0" B="Robot driving path" E="PFD0" G="3">
         <TLG A="TLG00001" C="0"/>
-        <GAN A="GGP0"/>
+        <GAN A="GGP0">
+            <ASP A="1970-01-01T00:00:00Z" D="4"/>
+        </GAN>
     </TSK>
 </ISO11783_TaskData>

@@ -9,8 +9,10 @@
 #include <ctime>
 #include <iostream>
 #include <iomanip>
+#include <limits>
 #include <cmath>
 #include <regex>
+#include <stdexcept>
 
 namespace robosoft_core
 {
@@ -90,6 +92,79 @@ std::string clusterExtensionJson(
   return json.str();
 }
 
+constexpr int64_t kMinimumPointUpMillimetres =
+  static_cast<int64_t>(std::numeric_limits<int32_t>::min()) + 1;
+constexpr int64_t kMaximumPointUpMillimetres =
+  std::numeric_limits<int32_t>::max();
+
+int64_t altitudeMillimetres(double altitude_metres)
+{
+  if (!std::isfinite(altitude_metres)) {
+    throw std::range_error("PNT.E altitude must be finite");
+  }
+  const double millimetres = altitude_metres * 1000.0;
+  if (millimetres < static_cast<double>(kMinimumPointUpMillimetres) - 0.5 ||
+    millimetres > static_cast<double>(kMaximumPointUpMillimetres) + 0.5)
+  {
+    throw std::range_error("PNT.E altitude is outside the ISO 11783-10 range");
+  }
+  const int64_t rounded = std::llround(millimetres);
+  if (rounded < kMinimumPointUpMillimetres ||
+    rounded > kMaximumPointUpMillimetres)
+  {
+    throw std::range_error("PNT.E altitude is outside the ISO 11783-10 range");
+  }
+  return rounded;
+}
+
+void setPointAltitude(XMLElement * element, double altitude_metres)
+{
+  element->SetAttribute("E", altitudeMillimetres(altitude_metres));
+}
+
+void setStandardDesignator(
+  XMLElement * element, const char * attribute,
+  const std::string & value, const char * field_name)
+{
+  if (value.empty()) {return;}
+  if (value.size() > 32U) {
+    std::cerr << "Warning: " << field_name << " exceeds the ISO 11783-10 "
+              << "32-character designator limit (" << value.size()
+              << " characters)" << std::endl;
+  }
+  element->SetAttribute(attribute, value.c_str());
+}
+
+std::string timestampUtc(uint64_t unix_seconds)
+{
+  if (unix_seconds >
+    static_cast<uint64_t>(std::numeric_limits<std::time_t>::max()))
+  {
+    throw std::range_error("TASK timestamp cannot be represented as xs:dateTime");
+  }
+  const std::time_t time = static_cast<std::time_t>(unix_seconds);
+  std::tm utc{};
+  if (gmtime_r(&time, &utc) == nullptr) {
+    throw std::range_error("TASK timestamp cannot be converted to UTC");
+  }
+  std::ostringstream stream;
+  stream << std::put_time(&utc, "%Y-%m-%dT%H:%M:%SZ");
+  return stream.str();
+}
+
+bool parseUtcTimestamp(const std::string & value, uint64_t & unix_seconds)
+{
+  if (value.size() != 20U || value.back() != 'Z') {return false;}
+  std::tm utc{};
+  std::istringstream stream(value);
+  stream >> std::get_time(&utc, "%Y-%m-%dT%H:%M:%SZ");
+  if (stream.fail()) {return false;}
+  const std::time_t parsed = timegm(&utc);
+  if (parsed < 0) {return false;}
+  unix_seconds = static_cast<uint64_t>(parsed);
+  return true;
+}
+
 }  // namespace
 
 // ============================================================================
@@ -112,6 +187,7 @@ Task::Task()
   task_status(robosoft_interfaces::msg::TaskData::STATUS_PLANNED) {}
 
 Task::Task(const robosoft_interfaces::msg::TaskData & msg)
+: Task()
 {
   fromMessage(msg);
 }
@@ -155,19 +231,30 @@ bool Task::loadFromFile(const std::string & filepath)
     task_controller_version = value;
   }
 
+  bool references_valid = true;
   // ISO reference objects are root children.
   for (XMLElement * child = root->FirstChildElement(); child;
     child = child->NextSiblingElement())
   {
     const std::string tag = child->Name();
-    if (tag == "FRM") {parseFarm(child);}
-    else if (tag == "CTR") {parseCustomer(child);}
-    else if (tag == "PDT") {parseProduct(child);}
-    else if (tag == "DVC") {parseDevice(child);}
-    else if (tag == "PFD") {parsePartfield(child);}
-    else if (tag == "OTQ") {parseOperationTechnique(child);}
-    else if (tag == "CPC") {parseCulturalPractice(child);}
+    if (tag == "FRM") {
+      references_valid = parseFarm(child) && references_valid;
+    } else if (tag == "CTR") {
+      references_valid = parseCustomer(child) && references_valid;
+    } else if (tag == "PDT") {
+      references_valid = parseProduct(child) && references_valid;
+    } else if (tag == "DVC") {
+      references_valid = parseDevice(child) && references_valid;
+    } else if (tag == "PFD") {
+      references_valid = parsePartfield(child) && references_valid;
+    } else if (tag == "OTQ") {
+      references_valid = parseOperationTechnique(child) && references_valid;
+    } else if (tag == "CPC") {
+      references_valid = parseCulturalPractice(child) && references_valid;
+    }
   }
+
+  if (!references_valid) {return false;}
 
   XMLElement * task_elem = root->FirstChildElement("TSK");
   if (!task_elem) {
@@ -180,42 +267,47 @@ bool Task::loadFromFile(const std::string & filepath)
 
 bool Task::saveToFile(const std::string & filepath) const
 {
-  XMLDocument doc;
+  try {
+    XMLDocument doc;
 
-  XMLElement * root = doc.NewElement("ISO11783_TaskData");
-  root->SetAttribute("VersionMajor", version_major.c_str());
-  root->SetAttribute("VersionMinor", version_minor.c_str());
-  root->SetAttribute(
+    XMLElement * root = doc.NewElement("ISO11783_TaskData");
+    root->SetAttribute("VersionMajor", version_major.c_str());
+    root->SetAttribute("VersionMinor", version_minor.c_str());
+    root->SetAttribute(
     "ManagementSoftwareManufacturer",
     management_software_manufacturer.c_str());
-  root->SetAttribute(
+    root->SetAttribute(
     "ManagementSoftwareVersion", management_software_version.c_str());
-  root->SetAttribute(
+    root->SetAttribute(
     "TaskControllerManufacturer", task_controller_manufacturer.c_str());
-  root->SetAttribute(
+    root->SetAttribute(
     "TaskControllerVersion", task_controller_version.c_str());
-  root->SetAttribute("DataTransferOrigin", 2);  // MICS
-  doc.InsertFirstChild(root);
+    root->SetAttribute("DataTransferOrigin", 2); // MICS
+    doc.InsertFirstChild(root);
 
-  buildFarms(root);
-  buildCustomers(root);
-  buildProducts(root);
-  buildDevices(root);
-  buildPartfields(root);
-  buildOperationTechniques(root);
-  buildCulturalPractices(root);
+    buildFarms(root);
+    buildCustomers(root);
+    buildProducts(root);
+    buildDevices(root);
+    buildPartfields(root);
+    buildOperationTechniques(root);
+    buildCulturalPractices(root);
 
-  XMLElement * task_elem = doc.NewElement("TSK");
-  root->InsertEndChild(task_elem);
+    XMLElement * task_elem = doc.NewElement("TSK");
+    root->InsertEndChild(task_elem);
 
-  buildRoot(task_elem);
+    buildRoot(task_elem);
 
-  if (doc.SaveFile(filepath.c_str()) != tinyxml2::XML_SUCCESS) {
-    std::cerr << "Failed to save XML file: " << filepath << std::endl;
+    if (doc.SaveFile(filepath.c_str()) != tinyxml2::XML_SUCCESS) {
+      std::cerr << "Failed to save XML file: " << filepath << std::endl;
+      return false;
+    }
+
+    return true;
+  } catch (const std::exception & error) {
+    std::cerr << "Failed to serialize TASK XML: " << error.what() << std::endl;
     return false;
   }
-
-  return true;
 }
 
 // ============================================================================
@@ -226,10 +318,15 @@ robosoft_interfaces::msg::TaskData Task::toMessage() const
 {
   robosoft_interfaces::msg::TaskData msg;
   msg.task_name = task_name;
-  msg.farm_name = current_farm_id;
+  msg.task_id = task_id;
+  const auto farm = farms.find(current_farm_id);
+  msg.farm_id = current_farm_id;
+  msg.farm_name = farm == farms.end() ?
+    std::string{} : farm->second.farm_designator;
   const auto partfield = partfields.find(current_partfield_id);
+  msg.partfield_id = current_partfield_id;
   msg.partfield_name = partfield == partfields.end() ?
-    current_partfield_id : partfield->second.partfield_name;
+    std::string{} : partfield->second.partfield_designator;
   msg.version = version_major + "." + version_minor;
   msg.timestamp = creation_timestamp;
   msg.guidance_lines = guidance_allocations;
@@ -251,21 +348,31 @@ robosoft_interfaces::msg::TaskData Task::toMessage() const
 void Task::fromMessage(const robosoft_interfaces::msg::TaskData & msg)
 {
   task_name = msg.task_name;
-  current_farm_id = msg.farm_name;
-  current_partfield_id = msg.partfield_name;
+  task_designator = msg.task_name;
+  task_id = msg.task_id.empty() ? "TSK1" : msg.task_id;
+  farms.clear();
+  partfields.clear();
+  guidance_altitude_present_.clear();
+  current_farm_id.clear();
+  if (!msg.farm_name.empty() || !msg.farm_id.empty()) {
+    Farm farm;
+    farm.farm_id = msg.farm_id.empty() ? "FRM1" : msg.farm_id;
+    farm.farm_designator = msg.farm_name.empty() ? "Farm" : msg.farm_name;
+    current_farm_id = farm.farm_id;
+    farms.emplace(farm.farm_id, std::move(farm));
+  }
+  current_partfield_id = msg.partfield_id.empty() ? "PFD1" : msg.partfield_id;
   version_major = "4";
   version_minor = "0";
   creation_timestamp = msg.timestamp;
   guidance_allocations = msg.guidance_lines;
   lidar_clusters = msg.lidar_clusters;
-  if (partfields.find(current_partfield_id) == partfields.end()) {
-    Partfield partfield;
-    partfield.partfield_id =
-      current_partfield_id.empty() ? "PFD1" : current_partfield_id;
-    partfield.partfield_name = msg.partfield_name;
-    current_partfield_id = partfield.partfield_id;
-    partfields[partfield.partfield_id] = partfield;
-  }
+  Partfield partfield;
+  partfield.partfield_id = current_partfield_id;
+  partfield.partfield_designator =
+    msg.partfield_name.empty() ? "Recorded field" : msg.partfield_name;
+  partfield.farm_id_ref = current_farm_id;
+  partfields.emplace(partfield.partfield_id, std::move(partfield));
   task_status = msg.status <= robosoft_interfaces::msg::TaskData::STATUS_CANCELED ?
     msg.status : robosoft_interfaces::msg::TaskData::STATUS_NOT_SET;
 }
@@ -346,12 +453,14 @@ bool Task::parseFarm(void * xml_elem)
   if (const char * id = elem->Attribute("A")) {
     farm.farm_id = id;
   }
-  if (const char * name = elem->Attribute("B")) {
-    farm.farm_name = name;
+  if (const char * designator = elem->Attribute("B")) {
+    farm.farm_designator = designator;
   }
-  if (const char * code = elem->Attribute("D")) {
-    farm.country_code = code;
+  if (const char * country = elem->Attribute("H")) {
+    farm.farm_country = country;
   }
+
+  if (farm.farm_id.empty() || farm.farm_designator.empty()) {return false;}
 
   current_farm_id = farm.farm_id;
   farms[farm.farm_id] = farm;
@@ -418,8 +527,23 @@ bool Task::parsePartfield(void * xml_elem)
   if (const char * id = elem->Attribute("A")) {
     partfield.partfield_id = id;
   }
-  if (const char * name = elem->Attribute("B")) {
-    partfield.partfield_name = name;
+  if (const char * code = elem->Attribute("B")) {partfield.partfield_code = code;}
+  if (const char * designator = elem->Attribute("C")) {
+    partfield.partfield_designator = designator;
+  }
+  if (const char * customer = elem->Attribute("E")) {
+    partfield.customer_id_ref = customer;
+  }
+  if (const char * farm = elem->Attribute("F")) {partfield.farm_id_ref = farm;}
+  uint64_t area = 0;
+  if (elem->QueryUnsigned64Attribute("D", &area) != tinyxml2::XML_SUCCESS ||
+    area > 4294967294ULL)
+  {
+    return false;
+  }
+  partfield.area = area;
+  if (partfield.partfield_id.empty() || partfield.partfield_designator.empty()) {
+    return false;
   }
 
   current_partfield_id = partfield.partfield_id;
@@ -452,8 +576,7 @@ bool Task::parsePartfield(void * xml_elem)
           child->FirstChildElement("RoboSoftExtension");
         const char * extension_type = extension ?
           extension->Attribute("type") : nullptr;
-        if (extension_type && std::string(extension_type) == "lidar_cluster")
-        {
+        if (extension_type && std::string(extension_type) == "lidar_cluster") {
           cluster.covariance_xx = extension->DoubleAttribute("xx");
           cluster.covariance_xy = extension->DoubleAttribute("xy");
           cluster.covariance_yx = extension->DoubleAttribute("yx");
@@ -536,6 +659,14 @@ bool Task::parseGuidancePattern(void * xml_elem)
     line.driving_direction = static_cast<int8_t>(extension->IntAttribute("direction", 0));
   }
   if (!parseLineString(line_string, line.points)) {return false;}
+  std::vector<bool> altitude_present;
+  for (const XMLElement * point = line_string->FirstChildElement("PNT"); point;
+    point = point->NextSiblingElement("PNT"))
+  {
+    altitude_present.push_back(point->Attribute("E") != nullptr);
+  }
+  guidance_altitude_present_[pattern.guidance_pattern_id] =
+    std::move(altitude_present);
   if (!line.points.empty()) {line.target_speed = line.points.front().speed;}
   guidance_patterns[pattern.guidance_pattern_id] = pattern;
   return true;
@@ -547,6 +678,23 @@ bool Task::parseGuidanceAllocation(void * xml_elem)
   const std::string group_id = getAttribute(elem, "A");
   const auto group = guidance_groups.find(group_id);
   if (group == guidance_groups.end()) {return false;}
+  XMLElement * stamp_element = elem->FirstChildElement("ASP");
+  if (stamp_element == nullptr) {return false;}
+  GuidanceAllocationStamp stamp;
+  stamp.start = getAttribute(stamp_element, "A");
+  int type = 0;
+  if (stamp.start.empty() ||
+    stamp_element->QueryIntAttribute("D", &type) != tinyxml2::XML_SUCCESS ||
+    (type != 1 && type != 4))
+  {
+    return false;
+  }
+  stamp.type = static_cast<uint8_t>(type);
+  guidance_allocation_stamps[group_id] = std::move(stamp);
+  if (creation_timestamp == 0) {
+    (void)parseUtcTimestamp(
+      guidance_allocation_stamps[group_id].start, creation_timestamp);
+  }
   bool allocated = false;
   for (const auto & pattern_id : group->second.guidance_pattern_ids) {
     const auto pattern = guidance_patterns.find(pattern_id);
@@ -618,7 +766,19 @@ bool Task::parsePoint(void * xml_elem, robosoft_interfaces::msg::RoutePoint & po
   point.designator = getAttribute(elem, "B");
   point.latitude = getAttributeDouble(elem, "C");
   point.longitude = getAttributeDouble(elem, "D");
-  point.altitude = getAttributeDouble(elem, "E");
+  point.altitude = 0.0F;
+  if (elem->Attribute("E")) {
+    int64_t altitude_millimetres = 0;
+    if (elem->QueryInt64Attribute("E", &altitude_millimetres) !=
+      tinyxml2::XML_SUCCESS ||
+      altitude_millimetres < kMinimumPointUpMillimetres ||
+      altitude_millimetres > kMaximumPointUpMillimetres)
+    {
+      return false;
+    }
+    point.altitude = static_cast<float>(
+      static_cast<double>(altitude_millimetres) / 1000.0);
+  }
   point.speed = 1.0;  // Default speed
   point.yaw = 0.0;
   point.implement_state =
@@ -736,7 +896,10 @@ void Task::buildFarms(void * xml_elem) const
     const Farm & farm = farm_pair.second;
     XMLElement * farm_elem = doc->NewElement("FRM");
     farm_elem->SetAttribute("A", farm.farm_id.c_str());
-    farm_elem->SetAttribute("B", farm.farm_name.c_str());
+    farm_elem->SetAttribute("B", farm.farm_designator.c_str());
+    if (!farm.farm_country.empty()) {
+      farm_elem->SetAttribute("H", farm.farm_country.c_str());
+    }
     elem->InsertEndChild(farm_elem);
   }
 }
@@ -771,15 +934,14 @@ void Task::buildProducts(void * xml_elem) const
 
 void Task::buildDevices(void * xml_elem) const
 {
-  XMLElement * elem = static_cast<XMLElement *>(xml_elem);
-  XMLDocument * doc = elem->GetDocument();
-
-  for (const auto & device_pair : devices) {
-    const Device & device = device_pair.second;
-    XMLElement * device_elem = doc->NewElement("DVC");
-    device_elem->SetAttribute("A", device.device_id.c_str());
-    device_elem->SetAttribute("B", device.device_name.c_str());
-    elem->InsertEndChild(device_elem);
+  (void)xml_elem;
+  if (!devices.empty()) {
+    // The current model does not contain mandatory DVC.D/F/G values or the
+    // mandatory DET hierarchy. Emitting only DVC.A/B would create invalid
+    // ISOXML, so unreferenced parsed devices are intentionally omitted.
+    std::cerr << "Warning: omitting " << devices.size()
+              << " DVC element(s); complete DVC/DET serialization is not "
+              << "supported" << std::endl;
   }
 }
 
@@ -796,7 +958,17 @@ void Task::buildPartfields(void * xml_elem) const
     const Partfield & pf = pf_pair.second;
     XMLElement * pf_elem = doc->NewElement("PFD");
     pf_elem->SetAttribute("A", pf.partfield_id.c_str());
-    pf_elem->SetAttribute("B", pf.partfield_name.c_str());
+    if (!pf.partfield_code.empty()) {
+      pf_elem->SetAttribute("B", pf.partfield_code.c_str());
+    }
+    pf_elem->SetAttribute("C", pf.partfield_designator.c_str());
+    pf_elem->SetAttribute("D", pf.area);
+    if (!pf.customer_id_ref.empty()) {
+      pf_elem->SetAttribute("E", pf.customer_id_ref.c_str());
+    }
+    if (!pf.farm_id_ref.empty()) {
+      pf_elem->SetAttribute("F", pf.farm_id_ref.c_str());
+    }
     elem->InsertEndChild(pf_elem);
 
     for (const auto & cluster : lidar_clusters) {
@@ -805,9 +977,11 @@ void Task::buildPartfields(void * xml_elem) const
       point->SetAttribute("C", cluster.latitude);
       point->SetAttribute("D", cluster.longitude);
       if (extension_format_ == ExtensionFormat::DESIGNATOR_JSON) {
-        point->SetAttribute("B", clusterExtensionJson(cluster).c_str());
+        setStandardDesignator(
+          point, "B", clusterExtensionJson(cluster), "PNT.B");
       } else {
-        point->SetAttribute("B", "RoboSoft lidar cluster");
+        setStandardDesignator(
+          point, "B", "RoboSoft lidar cluster", "PNT.B");
         XMLElement * extension = doc->NewElement("RoboSoftExtension");
         extension->SetAttribute("type", "lidar_cluster");
         extension->SetAttribute("xx", cluster.covariance_xx);
@@ -874,6 +1048,16 @@ void Task::buildGuidanceAllocations(void * xml_elem) const
     }
     XMLElement * allocation = doc->NewElement("GAN");
     allocation->SetAttribute("A", group_id.c_str());
+    XMLElement * stamp = doc->NewElement("ASP");
+    const auto stored_stamp = guidance_allocation_stamps.find(group_id);
+    if (stored_stamp != guidance_allocation_stamps.end()) {
+      stamp->SetAttribute("A", stored_stamp->second.start.c_str());
+      stamp->SetAttribute("D", stored_stamp->second.type);
+    } else {
+      stamp->SetAttribute("A", timestampUtc(creation_timestamp).c_str());
+      stamp->SetAttribute("D", 4);  // DataTransferOrigin=MICS: effective
+    }
+    allocation->InsertEndChild(stamp);
     elem->InsertEndChild(allocation);
     allocated_groups.push_back(group_id);
   }
@@ -920,7 +1104,7 @@ void Task::buildLineString(
     point_elem->SetAttribute("A", 2);  // ISO PointType: other
     point_elem->SetAttribute("C", point.latitude);
     point_elem->SetAttribute("D", point.longitude);
-    point_elem->SetAttribute("E", point.altitude);
+    setPointAltitude(point_elem, point.altitude);
     line_string->InsertEndChild(point_elem);
   }
 
@@ -938,11 +1122,10 @@ void Task::buildGuidanceLine(
   line_string->SetAttribute("A", 5);  // ISO 11783 GuidancePattern
 
   if (extension_format_ == ExtensionFormat::DESIGNATOR_JSON) {
-    line_string->SetAttribute("B", lineExtensionJson(line).c_str());
+    setStandardDesignator(
+      line_string, "B", lineExtensionJson(line), "LSG.B");
   } else {
-    if (!line.designator.empty()) {
-      line_string->SetAttribute("B", line.designator.c_str());
-    }
+    setStandardDesignator(line_string, "B", line.designator, "LSG.B");
     XMLElement * extension = doc->NewElement("RoboSoftExtension");
     extension->SetAttribute("group", line.guidance_group_id.c_str());
     extension->SetAttribute("pattern", line.guidance_pattern_id.c_str());
@@ -959,11 +1142,10 @@ void Task::buildGuidanceLine(
       index == 0 ? 6 : (index + 1 == line.points.size() ? 7 : 9);
     point_elem->SetAttribute("A", point_type);
     if (extension_format_ == ExtensionFormat::DESIGNATOR_JSON) {
-      point_elem->SetAttribute("B", pointExtensionJson(point).c_str());
+      setStandardDesignator(
+        point_elem, "B", pointExtensionJson(point), "PNT.B");
     } else {
-      if (!point.designator.empty()) {
-        point_elem->SetAttribute("B", point.designator.c_str());
-      }
+      setStandardDesignator(point_elem, "B", point.designator, "PNT.B");
       XMLElement * extension = doc->NewElement("RoboSoftExtension");
       extension->SetAttribute("yaw", point.yaw);
       extension->SetAttribute("speed", point.speed);
@@ -972,7 +1154,13 @@ void Task::buildGuidanceLine(
     }
     point_elem->SetAttribute("C", point.latitude);
     point_elem->SetAttribute("D", point.longitude);
-    point_elem->SetAttribute("E", point.altitude);
+    const auto presence = guidance_altitude_present_.find(
+      line.guidance_pattern_id);
+    if (presence == guidance_altitude_present_.end() ||
+      index >= presence->second.size() || presence->second[index])
+    {
+      setPointAltitude(point_elem, point.altitude);
+    }
     line_string->InsertEndChild(point_elem);
   }
 
@@ -984,10 +1172,10 @@ void Task::buildPoint(void * xml_elem, const robosoft_interfaces::msg::RoutePoin
   XMLElement * elem = static_cast<XMLElement *>(xml_elem);
 
   elem->SetAttribute("A", 2);  // ISO PointType: other
-  if (!point.designator.empty()) {elem->SetAttribute("B", point.designator.c_str());}
+  setStandardDesignator(elem, "B", point.designator, "PNT.B");
   elem->SetAttribute("C", point.latitude);
   elem->SetAttribute("D", point.longitude);
-  elem->SetAttribute("E", point.altitude);
+  setPointAltitude(elem, point.altitude);
 }
 
 void Task::buildExterior(

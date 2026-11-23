@@ -24,8 +24,9 @@ own platform.
 - **State machine**: reusable operating states, TaskManager synchronization,
   startup dependency discovery and robot-state publication. Docs:
   [src/state_machine/README.md](src/state_machine/README.md)
-- **Task management**: ISO 11783-10 XML conversion, runtime task ownership and
-  recorded-route persistence. Docs: [src/task/README.md](src/task/README.md)
+- **Task management**: conversion of the ISO 11783-10 subset used by RoboSoft
+  missions, runtime task ownership and recorded-route persistence. Docs:
+  [src/task/README.md](src/task/README.md)
 
 Sources are grouped by these responsibilities. Each node and its directly
 related implementation files share one lower-case directory below the group.

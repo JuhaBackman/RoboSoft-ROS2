@@ -1,6 +1,9 @@
 # Task management
 
-ISO 11783-10 TASKDATA loading, persistence and runtime task ownership.
+ISO 11783-10 TASKDATA-subset loading, persistence and runtime task ownership.
+RoboSoft reads and writes the subset needed by its mission workflow; this is
+not a complete ISOXML parser or a promise of lossless round-trip preservation
+for unsupported elements.
 
 ## Components
 
@@ -29,19 +32,62 @@ ISO 11783-10 TASKDATA loading, persistence and runtime task ownership.
 | `autosave_recorded_routes` | `true` | Persist recorded routes automatically when possible |
 | `task_extension_format` | `xml_elements` | Encoding for fields without an ISO 11783 representation |
 
-Supported extension formats are `xml_elements` and `designator_json`.
-Standard ISO 11783 fields are always used when they can represent the value.
-`designator_json` serializes only additional RoboSoft data into designator
-strings. The obsolete pre-standard RoboSoft XML layout is not accepted.
+Supported extension formats are `xml_elements` and `designator_json`. Both are
+RoboSoft-specific encodings and are not generally interoperable ISO 11783
+exchange formats:
+
+- `xml_elements` writes `RoboSoftExtension` children that are outside the
+  ISO 11783-10 schema.
+- `designator_json` stores RoboSoft metadata in standard designator attributes;
+  the result can exceed the 32-character `PNT.B` or `LSG.B` limit and changes
+  the standard field's intended meaning. The writer warns whenever that limit
+  is exceeded.
+
+Files containing either RoboSoft extension representation are not claimed to
+be schema-conformant. `TASKDATA.XML` contains no RoboSoft extensions and
+documents the standard-only subset exercised by the focused tests. The
+obsolete bracket-encoded RoboSoft layout is not accepted.
 
 ## Supported TASKDATA subset
 
-- task, customer, farm and partfield metadata
+- task, customer, farm and partfield metadata used by missions
 - standard `TSK.G` task status
-- products, devices, operation techniques and cultural practices
-- guidance allocations, shifts, line strings and route points
+- products, operation techniques and cultural practices
+- guidance allocations with required allocation stamps, guidance groups,
+  line strings and route points
 - route speed, direction and implement metadata
 - lidar landmarks required by localization
+
+The standard mappings relevant to mission serialization include:
+
+- `PNT.E` is a signed integer altitude in millimetres on disk and metres in
+  `RoutePoint.altitude`. An absent optional `PNT.E` remains absent when a
+  directly loaded `Task` is saved.
+- `PFD.A/B/C/D/E/F` represent ID, optional code, required designator, required
+  area in square metres, optional customer reference and optional farm
+  reference.
+- `FRM.H` contains the optional farm country; `FRM.D` is a PO-box field and is
+  not interpreted as country.
+- Every written `GAN` includes its required `ASP`. Loaded allocation stamps
+  are preserved by the internal model. Newly generated allocations use the
+  `TaskData.timestamp` converted to UTC, with the Unix epoch representing an
+  unset zero timestamp, and effective type `4` for MICS output.
+
+`TaskData` carries `task_id`, `farm_id` and `partfield_id` separately from
+their human-readable names. Valid loaded IDs are retained; missing IDs are
+generated deterministically as `TSK1`, `FRM1` and `PFD1`.
+
+`TaskData` does not yet expose a separate allocation stamp for every guidance
+group. A direct `Task` load/save preserves those per-group values, while a
+TASK routed through the ROS message reconstructs allocation starts from the
+single task timestamp and writes MICS type `4`. A future interface revision is
+needed if per-group allocation history must survive that message boundary.
+
+Complete Device/DeviceElement serialization is not currently supported. A
+parsed, unreferenced DVC is omitted on output rather than being written without
+mandatory `ClientNAME`, structure/localization labels and a `DET` hierarchy.
+Device-referencing TASK content is outside the supported subset and must not be
+saved through RoboSoft until complete DVC/DET support is implemented.
 
 Manual recording and automatic execution both use the standard
 `TSK.G=RUNNING` value. `RobotState.substate` identifies whether the robot is

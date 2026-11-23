@@ -37,6 +37,10 @@ type, confidence, coordinate-frame names and the active TASK map identifier.
 This allows detection, association and estimation nodes to be replaced
 independently without coupling the interfaces to a particular lidar model.
 
+`TaskData` keeps ISO task, farm and partfield IDs separate from their
+human-readable designators. The TASK serializer generates deterministic IDs
+only when these ID fields are absent.
+
 ## Design rules
 
 - Prefer standard ROS messages at public sensor, pose, path and velocity
